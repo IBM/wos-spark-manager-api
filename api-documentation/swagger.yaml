@@ -1,0 +1,351 @@
+---
+swagger: "2.0"
+info:
+  description: Spark Manager application that provides APIs to read and write files to remote HDFS, run and get details about a job running in remote Spark cluster.
+  version: "1.0"
+  title: Custom Spark Manager REST Application
+basePath: /
+tags:
+- name: Jobs
+  description: Custom Spark Manager Rest Application Jobs API
+- name: Files
+  description: Custom Spark Manager Rest Application Files API
+consumes:
+- application/json
+produces:
+- application/json
+security:
+- basicAuth: []
+paths:
+  /spark_wrapper/v1/files:
+    get:
+      tags:
+      - Files
+      description: Downloads the file from HDFS.
+      operationId: files_get
+      produces:
+      - application/octet-stream
+      parameters:
+      - name: file
+        in: query
+        description: Name of the file or folder with path that should be downloaded from the remote HDFS. In case of folder path, download supported only if folder has single part file inside it. <br><br><b>Note</b>:When OpenScale calls this API it will perfix $hdfs to the file path the application should take care of replacing $hdfs with value set in the BASE_HDFS_LOCATION environment
+        required: true
+        type: string
+      responses:
+        "200":
+          description: File downloaded successfully.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorContainer'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorContainer'
+    put:
+      tags:
+      - Files
+      description: Uploads file to HDFS.
+      operationId: files_update
+      requestBody:
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      parameters:
+      - name: overwrite
+        in: query
+        description: Flag to overwrite the file if already exists.
+        required: false
+        type: string
+      - name: file
+        in: query
+        description: Name of the file to be uploaded with path. <br><br><b>Note</b>:When OpenScale calls this API it will perfix $hdfs to the file path the application should take care of replacing $hdfs with value set in the BASE_HDFS_LOCATION environment
+        required: true
+        type: string
+      responses:
+        "201":
+          description: File uploaded successfully.
+          schema:
+            $ref: '#/definitions/UploadFilesResponseModel'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorContainer'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorContainer'
+    delete:
+      tags:
+      - Files
+      description: Deletes the file or folder from HDFS.
+      operationId: files_delete
+      parameters:
+      - name: file
+        in: query
+        description: Name of the file or folder with path that should be deleted from the remote HDFS. <br><br><b>Note</b>:When OpenScale calls this API it will perfix $hdfs to the file path the application should take care of replacing $hdfs with value set in the BASE_HDFS_LOCATION environment
+        required: true
+        type: string
+      responses:
+        "200":
+          description: File deleted successfully.
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorContainer'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorContainer'
+  /spark_wrapper/v1/jobs:
+    post:
+      tags:
+      - Jobs
+      description: Submit and run a job.
+      operationId: jobs_add
+      parameters:
+      - in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/RunJobRequest'
+      - name: background_mode
+        in: query
+        description: Run the job in background mode. Defaults to false
+        required: false
+        type: string
+      responses:
+        "200":
+          description: Job finished successfully.
+          schema:
+            $ref: '#/definitions/RunJobResponse'
+        "202":
+          description: Job accepted successfully.
+          schema:
+            $ref: '#/definitions/RunJobResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorContainer'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorContainer'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorContainer'
+  /spark_wrapper/v1/jobs/{job_id}/logs:
+    get:
+      tags:
+      - Jobs
+      description: Fetches the logs for the jobs identified by the job identifier.
+      operationId: job_logs_get
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        type: string
+      - name: size
+        in: query
+        description: Max number of log lines to return
+        required: false
+        type: string
+      responses:
+        "200":
+          description: Job logs fetched successfully.
+          schema:
+            $ref: '#/definitions/GetJobLogsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorContainer'
+        "404":
+          description: Object not found
+          schema:
+            $ref: '#/definitions/ErrorContainer'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorContainer'
+  /spark_wrapper/v1/jobs/{job_id}/status:
+    get:
+      tags:
+      - Jobs
+      description: Fetches the job status for the job identified by the job identifier.
+      operationId: job_status_get
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Job status fetched successfully.
+          schema:
+            $ref: '#/definitions/GetJobStatusResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorContainer'
+        "404":
+          description: Object not found
+          schema:
+            $ref: '#/definitions/ErrorContainer'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorContainer'
+securityDefinitions:
+  basicAuth:
+    type: basic
+definitions:
+  RunJobRequest:
+    type: object
+    properties:
+      args:
+        type: array
+        description: Command line arguments for the application.
+        items:
+          type: string
+      file:
+        type: string
+        description: File containing the application to execute. `Note`:When OpenScale calls this API it will perfix $hdfs to the file path the application should take care of replacing $hdfs with value set in the BASE_HDFS_LOCATION environment variable
+      pyFiles:
+        type: array
+        description: Python files to be used in this session.
+        items:
+          type: string
+      proxyUser:
+        type: string
+        description: User to impersonate when running the job
+      className:
+        type: string
+        description: Application Java/Spark main class
+      jars:
+        type: array
+        description: jars to be used in this session
+        items:
+          type: string
+      files:
+        type: array
+        description: files to be used in this session
+        items:
+          type: string
+      driverMemory:
+        type: string
+        description: Amount of memory to use for the driver process
+      driverCores:
+        type: integer
+      executorMemory:
+        type: string
+        description: Amount of memory to use per executor process
+      executorCores:
+        type: integer
+        description: Number of cores to use for each executor
+      numExecutors:
+        type: integer
+        description: Number of executors to launch for this session
+      archives:
+        type: array
+        description: Archives to be used in this session
+        items:
+          type: string
+      queue:
+        type: string
+        description: The name of the YARN queue to which submitted
+      name:
+        type: string
+        description: The name of this session
+      conf:
+        type: object
+        description: Spark configuration properties
+        properties: {}
+  ErrorContainer:
+    type: object
+    properties:
+      errors:
+        type: array
+        description: The list of error objects.
+        items:
+          $ref: '#/definitions/ErrorModel'
+  ErrorModel:
+    type: object
+    properties:
+      message:
+        type: string
+        example: Error occurred
+        description: The message explaining the error and a possible solution.
+  RunJobResponse:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: The job id.
+      state:
+        type: string
+        description: The job state.
+      appId:
+        type: string
+        description: The application id of the job.
+  GetJobStatusResponse:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: The job id.
+      state:
+        type: string
+        description: The job state.
+  GetJobLogsResponse:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: The job id.
+      from:
+        type: integer
+        description: Offset from start of log.
+      size:
+        type: integer
+        description: Number of log lines.
+      log:
+        type: array
+        description: The log lines.
+        items:
+          type: string
+  UploadFilesResponseModel:
+    type: object
+    properties:
+      status:
+        type: string
+        description: Status of the upload operation.
+      location:
+        type: string
+        description: Relative path of the file uploaded.
+responses:
+  ParseError:
+    description: When a mask can't be parsed
+  MaskError:
+    description: When any error occurs on mask
+  BadRequestError:
+    description: Bad request error handler
+  AuthenticationError:
+    description: Authentication error handler
+  ObjectNotFoundError:
+    description: Object not found error handler
+  InternalServerError:
+    description: Internal server error handler
+  ServiceErrors:
+    description: Service errors handler
+  ServiceError:
+    description: Service error handler
+  Exception:
+    description: Exception error handler
