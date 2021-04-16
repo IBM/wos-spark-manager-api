@@ -18,8 +18,3 @@ LIVY_JOB_FAILED_STATE = 'error'
 LIVY_JOB_DEAD_STATE = 'dead'
 LIVY_JOB_KILLED_STATE = 'killed'
 SYNC_JOB_MAX_WAIT_TIME = 300
-
-
-class RecordType(Enum):
-    PAYLOAD_LOGGING = "payload_logging"
-    EXPLANATIONS = "explanations"

@@ -29,9 +29,10 @@ class LivyClient:
         self.auth = None
         if Environment().is_kerberos_enabled():
             from requests_kerberos import HTTPKerberosAuth, REQUIRED
-            self.auth = HTTPKerberosAuth(mutual_authentication=REQUIRED, sanitize_mutual_error_response=False)
+            self.auth = HTTPKerberosAuth(
+                mutual_authentication=REQUIRED, sanitize_mutual_error_response=False)
 
-    def run_batch_job(self, job_json, background=True):
+    def run_batch_job(self, job_json, background=True, timeout=constants.SYNC_JOB_MAX_WAIT_TIME):
         """
         Submits a job request using Livy batches endpoint
 
@@ -57,12 +58,13 @@ class LivyClient:
             start_time = time.time()
             elapsed_time = 0
             sleep_time = 15
-            timeout = constants.SYNC_JOB_MAX_WAIT_TIME
             while state not in (constants.LIVY_JOB_FINISHED_STATE, constants.LIVY_JOB_FAILED_STATE,
                                 constants.LIVY_JOB_DEAD_STATE, constants.LIVY_JOB_KILLED_STATE):
-                if elapsed_time > timeout:
-                    raise ServiceError("Job didn't come to Finished/Failed state in {} seconds. Current state is ".format(timeout, state))
-                print("{}: Sleeping for {} seconds. Current state {}".format(datetime.datetime.now(), sleep_time, state))
+                if elapsed_time > int(timeout):
+                    raise ServiceError(
+                        "Job didn't come to Finished/Failed state in {} seconds. Current state is ".format(timeout, state))
+                print("{}: Sleeping for {} seconds. Current state {}".format(
+                    datetime.datetime.now(), sleep_time, state))
                 sleep(sleep_time)
                 elapsed_time = time.time() - start_time
                 status = self.get_job_status(job_id)
@@ -93,7 +95,8 @@ class LivyClient:
 
         if not response.ok:
             if response.status_code == 404:
-                raise ObjectNotFoundError("Job with id {} not found.".format(job_id))
+                raise ObjectNotFoundError(
+                    "Job with id {} not found.".format(job_id))
 
             raise ServiceError("Failed to get jobs state. " + response.text)
 
@@ -127,7 +130,8 @@ class LivyClient:
 
         if not response.ok:
             if response.status_code == 404:
-                raise ObjectNotFoundError("Job with id {} not found.".format(job_id))
+                raise ObjectNotFoundError(
+                    "Job with id {} not found.".format(job_id))
 
             raise ServiceError("Failed to get job logs. " + response.text)
 

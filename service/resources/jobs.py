@@ -16,6 +16,7 @@ from flask_restplus import Namespace, Resource
 from service.resources.entity.run_job_request import RunJobRequestSchema
 from service.core.jobs_provider import JobsProvider
 from service.resources.entity.sw_model import SwModel
+from service.utils.constants import SYNC_JOB_MAX_WAIT_TIME
 
 from service.utils.sw_logger import SwLogger
 
@@ -30,6 +31,7 @@ class Jobs(Resource):
     @ns.expect(swagger_model.run_job_request_model, validate=True)
     @ns.doc(id="post", description="Submit and run a job.", body=swagger_model.run_job_request_model)
     @ns.param(name="background_mode", description="Run the job in background mode. Defaults to true", _in="query", required=False)
+    @ns.param(name="timeout", description="The timeout when the job is not running in background mode. Applicable only when background_mode=False", _in="query", required=False)
     @ns.response(200, "Job finished successfully.", swagger_model.run_job_response_model)
     @ns.response(202, "Job accepted successfully.", swagger_model.run_job_response_model)
     @ns.response(400, "Bad Request", swagger_model.error_container)
@@ -44,6 +46,7 @@ class Jobs(Resource):
         if background_mode is not None and background_mode.lower() == "false":
             background_mode_flag = False
             response_status_code = 202
+        timeout = request.args.get("timeout") or SYNC_JOB_MAX_WAIT_TIME
 
         request_json = {}
         if not request.data:
@@ -53,7 +56,8 @@ class Jobs(Resource):
         logger.log_debug(str(request_json))
 
         run_request_payload = RunJobRequestSchema().load(request_json).data
-        response_content = JobsProvider().run_job(run_request_payload, background_mode_flag)
+        response_content = JobsProvider().run_job(
+            run_request_payload, background_mode_flag, timeout)
 
         return response_content, response_status_code
 

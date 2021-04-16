@@ -10,7 +10,7 @@
 # an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations under the License.
 # ----------------------------------------------------------------------------------------------------
-
+import time
 from string import Template
 
 from service.clients.web_hdfs_client import WebHdfsClient
@@ -68,6 +68,30 @@ class FilesProvider:
                 raise ex
         return response
 
+    def download_directory(self, directory_path):
+        """
+        Downloads a file from HDFS location identified by the path
+
+        Keyword arguments:
+            directory_path {str} -- Name of the directory identified with a path
+
+        Returns:
+             response -- Default Flask response object with archived directory content and appropriate headers set
+        """
+        response = None
+        try:
+            start_time = time.time()
+            response = self.client.download_directory(directory_path)
+            end_time = time.time()
+            logger.log_info("Time taken to download the directory {0} is {1}".format(
+                    directory_path, str(end_time - start_time)
+                ))
+        except Exception as ex:
+            logger.log_exception("Directory download operation failed", exc_info=True)
+            if isinstance(ex, ServiceError):
+                raise ex
+        return response
+
     def delete_file(self, file_name_with_path):
         """
         Deletes a file from HDFS identified by the path
@@ -86,6 +110,54 @@ class FilesProvider:
             if isinstance(ex, ServiceError):
                 raise ex
         return response
+
+    def delete_directory(self, directory_path):
+        """
+        Deletes a directory and it's contents recursively from HDFS identified by the path
+
+        Keyword arguments:
+            directory_path {str} -- Name of the directory identified with a path
+
+        Returns:
+             response -- Http method response
+        """
+        response = None
+        try:
+            self.client.delete_directory(directory_path)
+            
+        except Exception as ex:
+            logger.log_exception("Directory delete operation failed", exc_info=True)
+            if isinstance(ex, ServiceError):
+                raise ex
+        return response
+
+    
+    def upload_directory(self, hdfs_directory_path, archive_directory_data):
+        """
+        Upplaods a directory to HDFS identified by the path
+
+        Keyword arguments:
+            hdfs_directory_path {str} -- Name of the directory identified with a path
+            archive_directory_data {binary data} - Directory content in tar.gz format
+
+        Returns:
+             response -- Http method response
+        """
+        response = None
+        start_time = time.time()
+        try:
+            absolute_directory_path = self.__update_absolute_hdfs_file_path(hdfs_directory_path)
+            response = self.client.upload_directory(absolute_directory_path, archive_directory_data)
+            end_time = time.time()
+            logger.log_info("Time taken to upload the directory {0} is {1}".format(
+                    hdfs_directory_path, str(end_time - start_time)))
+        except Exception as ex:
+            logger.log_exception("Directory upload operation failed", exc_info=True)
+            if isinstance(ex, ServiceError):
+                raise ex
+        return response
+
+    
 
     @staticmethod
     def __update_absolute_hdfs_file_path(file_name_with_path):

@@ -10,32 +10,29 @@
 # an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations under the License.
 # ----------------------------------------------------------------------------------------------------
-
 from pyhive import hive
 
 from service.exception.exceptions import ServiceError
 from service.utils.environment import Environment
 from service.utils.sw_logger import SwLogger
-from service.utils.constants import RecordType
 
 logger = SwLogger(__name__)
 
 
 class DataProvider:
 
-    def __init__(self, record_type, deployment_id):
-        self.record_type = RecordType(record_type)
-        self.env = Environment()
-        config = self.env.get_deployment_config(deployment_id)
-        self.database = config.get("database")
-        self.schema = config.get("schema")
-        self.table = config.get(self.record_type.value+"_table")
+    def __init__(self, host=None, port=None, database=None, schema=None, table=None):
+        self.host = host
+        self.port = port
+        self.database = database
+        self.schema = schema
+        self.table = table
 
     def get_records(self, search_filter, column_filter, order_by, limit, offset):
         conn = None
         cursor = None
         try:
-            conn = hive.connect(host=self.env.get_db_hostname(),
+            conn = hive.connect(host=self.host, port=self.port,
                                 database=self.database)
             logger.log_debug("Created connection")
             cursor = conn.cursor()
@@ -52,7 +49,7 @@ class DataProvider:
             values = self.__get_values(
                 rows=rows, fields=fields, fields_types=fields_types)
 
-            return {"fields": fields, "values": values}
+            return {"fields": fields, "values": values, "total_count": 1}
         except Exception as e:
             logger.log_error(
                 "Failed while fetching data from database with error : " + str(e))
@@ -96,12 +93,16 @@ class DataProvider:
             if conditions:
                 query = "{} WHERE {}".format(query, " AND ".join(conditions))
 
-        if order_by:
-            fs = order_by.split(":")
-            query = "{} ORDER BY {} {}".format(query, fs[0], fs[1].upper())
+        # if order_by:
+        #    fs = order_by.split(":")
+        #    query = "{} ORDER BY {} {}".format(query, fs[0], fs[1].upper())
+        if limit:
+            limit = min(limit, 100)
+            query = "{} LIMIT {}".format(query, limit)
+        if offset:
+            query = "{} OFFSET {}".format(query, offset)
 
-        limit = min(limit, 100)
-        return "{} LIMIT {} OFFSET {}".format(query, limit, offset)
+        return query
 
     def __get_fields_types(self, cursor, table, column_filter):
         cursor.execute("describe {}".format(table))

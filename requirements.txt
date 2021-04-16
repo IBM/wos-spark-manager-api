@@ -10,3 +10,4 @@ thrift
 sasl
 thrift_sasl
 requests-kerberos
+hdfs

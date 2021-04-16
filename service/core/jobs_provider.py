@@ -20,6 +20,7 @@ from service.resources.entity.run_job_request import RunJobRequest
 from service.utils.environment import Environment
 from service.utils.sw_logger import SwLogger
 from service.utils.sw_session_manager import SwSessionManager
+from service.utils.constants import SYNC_JOB_MAX_WAIT_TIME
 
 logger = SwLogger(__name__)
 
@@ -30,12 +31,13 @@ class JobsProvider:
 
     def __init__(self):
         if Environment().get_base_hdfs_location():
-            self.file_path_prefix = Environment().get_hdfs_file_base_url() + "/" + Environment().get_base_hdfs_location()
+            self.file_path_prefix = Environment().get_hdfs_file_base_url() + "/" + \
+                Environment().get_base_hdfs_location()
         else:
             self.file_path_prefix = Environment().get_hdfs_file_base_url()
         self.client = LivyClient()
 
-    def run_job(self, run_request: RunJobRequest, background=True):
+    def run_job(self, run_request: RunJobRequest, background=True, timeout=SYNC_JOB_MAX_WAIT_TIME):
         """
         Submits a job request using Livy batches endpoint
 
@@ -47,15 +49,20 @@ class JobsProvider:
              response {dict} -- Dictionary with job id, state and the application id.
         """
         run_request = self.__validate_run_request(run_request)
-        run_request_json = self.__replace_hdfs_base_path_in_run_request_params(run_request)
-        run_request_json = self.__add_additional_parameters_in_run_request(run_request_json)
+        run_request_json = self.__replace_hdfs_base_path_in_run_request_params(
+            run_request)
+        run_request_json = self.__add_additional_parameters_in_run_request(
+            run_request_json)
 
         try:
-            logger.log_info("Dumping the run job payload >>>>>>>>>>>> {}".format(run_request_json))
+            logger.log_info(
+                "Dumping the run job payload >>>>>>>>>>>> {}".format(run_request_json))
 
-            response = self.client.run_batch_job(run_request_json, background)
+            response = self.client.run_batch_job(
+                run_request_json, background, timeout)
         except Exception as ex:
-            logger.log_exception("File upload operation failed.", exc_info=True)
+            logger.log_exception(
+                "File upload operation failed.", exc_info=True)
             raise ex
 
         return response
@@ -104,7 +111,8 @@ class JobsProvider:
             raise BadRequestError("Run job request payload is missing")
 
         if run_request.file is None:
-            raise BadRequestError("'file' is missing in the run request payload")
+            raise BadRequestError(
+                "'file' is missing in the run request payload")
 
         return run_request
 
@@ -130,12 +138,13 @@ class JobsProvider:
     def __update_absolute_file_path_in_run_request(self, run_request: RunJobRequest):
 
         if run_request.file is not None:
-                run_request.file = self.file_path_prefix + "/" + run_request.file
+            run_request.file = self.file_path_prefix + "/" + run_request.file
 
         if run_request.pyFiles is not None:
             updated_pyfile_paths = []
             for pyfile in run_request.pyFiles:
-                updated_pyfile_paths.append(self.file_path_prefix + "/" + pyfile)
+                updated_pyfile_paths.append(
+                    self.file_path_prefix + "/" + pyfile)
             run_request.pyFiles = updated_pyfile_paths
 
         return run_request
@@ -155,12 +164,16 @@ class JobsProvider:
             archives.append(Environment().get_wos_env_archive_location())
             run_request_json["archives"] = archives
             if Environment().get_wos_env_site_packages_path() is not None:
-                run_request_json["conf"]["spark.yarn.appMasterEnv.PYTHONPATH"] = Environment().get_wos_env_site_packages_path()
-                run_request_json["conf"]["spark.executorEnv.PYTHONPATH"] = Environment().get_wos_env_site_packages_path()
+                run_request_json["conf"]["spark.yarn.appMasterEnv.PYTHONPATH"] = Environment(
+                ).get_wos_env_site_packages_path()
+                run_request_json["conf"]["spark.executorEnv.PYTHONPATH"] = Environment(
+                ).get_wos_env_site_packages_path()
 
         if Environment().is_kerberos_enabled():
             session = SwSessionManager().get_session()
-            run_request_json["conf"]["spark.yarn.principal"] = session.get_user_principal()
-            run_request_json["conf"]["spark.yarn.keytab"] = Environment().get_spark_yarn_keytab_file_path()
+            run_request_json["conf"]["spark.yarn.principal"] = session.get_user_principal(
+            )
+            run_request_json["conf"]["spark.yarn.keytab"] = Environment(
+            ).get_spark_yarn_keytab_file_path()
 
         return run_request_json
