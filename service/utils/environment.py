@@ -49,9 +49,6 @@ class Environment(metaclass=SwSingleton):
     def get_base_hdfs_location(self):
         return self.get_property_value("BASE_HDFS_LOCATION")
 
-    def get_db_hostname(self):
-        return self.get_property_value("DB_HOSTNAME")
-
     def get_deployment_config(self, deployment_id):
         with open("records_mapping.json", "r") as f:
             deployments_config = json.loads(f.read())

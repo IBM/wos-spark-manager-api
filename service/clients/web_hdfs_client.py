@@ -15,13 +15,20 @@ import json
 import os
 import random
 import time
+import io
+import shutil
+import tempfile
+import urllib3
+import tarfile
 
-from flask import Response
+from flask import Response, send_file
+from hdfs import InsecureClient
 
 from service.exception.exceptions import ServiceError, ObjectNotFoundError, BadRequestError
 from service.utils.environment import Environment
 from service.utils.rest_util import RestUtil
 from service.utils.sw_logger import SwLogger
+from service.utils.sw_session_manager import SwSessionManager
 
 logger = SwLogger(__name__)
 
@@ -194,9 +201,8 @@ class WebHdfsClient:
                 file_status_list = files_statuses.get("FileStatus")
 
                 if len(file_status_list) > 1:
-                    raise BadRequestError(
-                        "Specified path is a directory containing multiple files. Supported only if single part file is inside folder.")
-
+                    return [file_name_with_path]
+                    
                 path_suffix = file_status_list[0]["pathSuffix"]
                 if len(path_suffix) > 0:
                     if file_status_list[0]["type"] == "DIRECTORY":
@@ -208,3 +214,73 @@ class WebHdfsClient:
                     download_file_path = file_name_with_path
 
         return download_file_path
+
+    def download_directory(self, directory_url):
+        '''Downloads directory from remote HDFS to local, archives it and
+        returns the zip of the directory'''
+        logger.log_info("Downloading the directory {0} ".format(directory_url))
+        # Remove the base url from the absolute directory path provided as parameter
+        # For example, if the absolute path is hdfs://alpha:9000/configuration/12345/drift,
+        # the below statement will return /configuration/12345/drift
+        directory_name_with_path = urllib3.util.parse_url(directory_url).path
+        directory_name = os.path.split(directory_name_with_path)[1]
+        web_hdfs_url = Environment().get_web_hdfs_url()
+        session = SwSessionManager().get_session()
+        user_name = session.get_username()
+        client = InsecureClient(web_hdfs_url, user_name)
+        try:
+            with tempfile.TemporaryDirectory() as temp:
+                client.download(hdfs_path=directory_name_with_path, local_path=temp, n_threads=5)
+                tmp_archive = os.path.join(temp)
+                data = io.BytesIO()
+                with open(shutil.make_archive(tmp_archive, 'gztar', temp), "rb") as output_data:
+                    data.write(output_data.read())
+                data.seek(0)
+            return send_file(data, as_attachment=True, attachment_filename=directory_name+".tar.gz")
+        except Exception as e:
+            raise ServiceError("Downloading the folder from HDFS failed with the error: {0}".format(str(e)))
+
+    def upload_directory(self, directory_path, archive_directory_data):
+        '''Untars the archive_directory_data provided as input,
+        and uploads all the contents of the tar to the directory path
+        specified on HDFS.
+        '''
+        logger.log_info("Uploading the directory to HDFS")
+        web_hdfs_url = Environment().get_web_hdfs_url()
+        hdfs_file_base_url = Environment().get_hdfs_file_base_url()
+        session = SwSessionManager().get_session()
+        user_name = session.get_username()
+        client = InsecureClient(web_hdfs_url, user_name)
+        directory_name_with_path = "/" + directory_path
+        directory_name = os.path.split(directory_path)[1]
+        try:
+            with tempfile.TemporaryDirectory() as temp:
+                local_dir_path = temp + "/" + directory_name +".tar.gz"
+                with open(local_dir_path, "wb") as dir_archive:
+                    dir_archive.write(archive_directory_data)
+                with tarfile.open(local_dir_path, "r:gz") as tar:
+                    tar.extractall(temp)
+                os.remove(local_dir_path)
+                response = client.upload(hdfs_path=directory_name_with_path, local_path=temp)
+                logger.log_info("Successfully uploaded the directory {0} to HDFS".format(response))
+            return hdfs_file_base_url + directory_name_with_path
+
+        except Exception as e:
+            raise ServiceError("Uploading the directory to HDFS failed with the error: {0}".format(str(e)))
+                
+    def delete_directory(self, directory_url):
+        web_hdfs_url = Environment().get_web_hdfs_url()
+        session = SwSessionManager().get_session()
+        user_name = session.get_username()
+        client = InsecureClient(web_hdfs_url, user_name)
+        try:
+            directory_name_with_path = urllib3.util.parse_url(directory_url).path
+            logger.log_info("Deleting the directory {}".format(directory_name_with_path))
+            response = client.delete(directory_name_with_path, recursive=True)
+            if not response:
+                raise ServiceError("Directory {0} doesn't exist".format(directory_name_with_path))
+            return
+
+        except Exception as e:
+            raise ServiceError("Deleting the folder from HDFS failed with the error: {0}".format(str(e)))
+

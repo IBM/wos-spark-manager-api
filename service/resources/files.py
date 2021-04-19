@@ -37,32 +37,42 @@ class Files(Resource):
         response_status_code = 201
 
         # grab all headers
-        file_name = request.args.get("file")
-        overwrite = request.args.get("overwrite")
+        if request.args.get("file"):
+            file_name = request.args.get("file")
+            overwrite = request.args.get("overwrite")
 
-        overwrite_flag = False
-        if overwrite is not None and overwrite in ["TRUE", "true", "True"]:
-            overwrite_flag = True
+            overwrite_flag = False
+            if overwrite is not None and overwrite in ["TRUE", "true", "True"]:
+                overwrite_flag = True
+            response_content = FilesProvider().upload_file(file_name_with_path=file_name, data=request.data, overwrite=overwrite_flag)
 
-        response_content = FilesProvider().upload_file(file_name_with_path=file_name, data=request.data, overwrite=overwrite_flag)
+        elif request.args.get("directory"):
+            hdfs_directory_path = request.args.get("directory")
+            response_content = FilesProvider().upload_directory(hdfs_directory_path=hdfs_directory_path, archive_directory_data=request.data)
+            
         return response_content, response_status_code
 
-    @ns.doc(id="get", description="Downloads the file from HDFS.")
+    @ns.doc(id="get", description="Downloads the file/folder from HDFS.")
     @ns.produces(["application/octet-stream"])
-    @ns.param(name="file", description="Name of the file or folder with path that should be downloaded from the remote HDFS. In case of folder path, download supported only if folder has single part file inside it.", _in="query", required=True, example="arun/testing/first_spark_job.py")
+    @ns.param(name="file", description="Name of the file with path that should be downloaded from the remote HDFS.", _in="query", required=True, example="arun/testing/first_spark_job.py")
+    @ns.param(name="directory", description=" Absolute path of the folder/directory that should be downloaded as a tar from the remote HDFS.", _in="query", required=False, example="hdfs://alpha:9000/testing_data/Configuration_Job/95139353-17f8-440e-ad65-9ff85999fabe/output/drift_archive_gcr/drift_detection_model")
     @ns.response(200, "File downloaded successfully.")
     @ns.response(401, "Unauthorized", swagger_model.error_container)
     @ns.response(500, "Internal Server Error", swagger_model.error_container)
     def get(self):
-
+        response_content = None
         # grab all headers
-        file_name = request.args.get("file")
-
-        response_content = FilesProvider().download_file(file_name_with_path=file_name)
+        if request.args.get("file"):
+            file_name = request.args.get("file")
+            response_content = FilesProvider().download_file(file_name_with_path=file_name)
+        elif request.args.get("directory"):
+            directory_path = request.args.get("directory")
+            response_content = FilesProvider().download_directory(directory_path=directory_path)
         return response_content
 
     @ns.doc(id="delete", description="Deletes the file or folder from HDFS.")
     @ns.param(name="file", description="Name of the file or folder with path that should be deleted from the remote HDFS.", _in="query", required=True, example="arun/testing/first_spark_job.py")
+    @ns.param(name="directory", description="Name of the folder with absolute path that should be deleted from the remote HDFS.", _in="query", required=False, example="hdfs://alpha:9000/arun/testing")
     @ns.response(200, "File deleted successfully.")
     @ns.response(401, "Unauthorized", swagger_model.error_container)
     @ns.response(500, "Internal Server Error", swagger_model.error_container)
@@ -70,8 +80,11 @@ class Files(Resource):
 
         response_status_code = 200
 
-        # grab all headers
-        file_name = request.args.get("file")
-
-        response_content = FilesProvider().delete_file(file_name_with_path=file_name)
+        if request.args.get("file"):
+            # grab all headers
+            file_name = request.args.get("file")
+            response_content = FilesProvider().delete_file(file_name_with_path=file_name)
+        elif request.args.get("directory"):
+            directory_path = request.args.get("directory")
+            response_content = FilesProvider().delete_directory(directory_path=directory_path)
         return response_content, response_status_code

@@ -26,10 +26,14 @@ logger = SwLogger(__name__)
 @ns.route("/records")
 class Records(Resource):
 
-    @ns.doc(id="get", description="Downloads the records from hive.")
+    @ns.doc(id="get", description="Downloads the records from database.")
     @ns.produces(["application/octet-stream"])
-    @ns.param(name="type", description="The type of records. Supported values are payload_logging, explanations", _in="query", required=True, example="payload_logging")
-    @ns.param(name="deployment_id", description="The deployment id", _in="query", required=True, example="deployment_1")
+    @ns.param(name="type", description="The type of database. Supported values are hive.", _in="query", required=True, example="hive")
+    @ns.param(name="host", description="Database host name.", _in="query", required=True, example="host")
+    @ns.param(name="port", description="Database port.", _in="query", required=True, example="port")
+    @ns.param(name="database", description="Database name.", _in="query", required=True, example="sampledb")
+    @ns.param(name="schema", description="Database schema", _in="query", required=True, example="schema")
+    @ns.param(name="table", description="Database table", _in="query", required=True, example="table")
     @ns.param(name="search_filter", description="The search criteria to use while querying.", _in="query", required=False, example="column1:eq:10")
     @ns.param(name="column_filter", description="The columns to be returned in the response.", _in="query", required=False, example="column1,column2")
     @ns.param(name="order_by", description="The column to be used to ordered the results and the order(ascending or descending).", _in="query", required=False, example="column1:desc")
@@ -40,8 +44,12 @@ class Records(Resource):
     @ns.response(500, "Internal Server Error", swagger_model.error_container)
     def get(self):
 
-        record_type = request.args.get("type")
-        deployment_id = request.args.get("deployment_id")
+        database_type = request.args.get("type")
+        host = request.args.get("host")
+        port = request.args.get("port")
+        database = request.args.get("database")
+        schema = request.args.get("schema")
+        table = request.args.get("table")
         search_filter = request.args.get("search_filter")
         column_filter = request.args.get("column_filter")
         order_by = request.args.get("order_by")
@@ -50,4 +58,4 @@ class Records(Resource):
         offset = request.args.get("offset")
         offset = int(offset) if offset else 0
 
-        return DataProvider(record_type, deployment_id).get_records(search_filter=search_filter, column_filter=column_filter, order_by=order_by, limit=limit, offset=offset)
+        return DataProvider(host=host, port=port, database=database, schema=schema, table=table).get_records(search_filter=search_filter, column_filter=column_filter, order_by=order_by, limit=limit, offset=offset)

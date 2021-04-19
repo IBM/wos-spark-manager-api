@@ -3,11 +3,11 @@ FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 # metadata
 ARG VERSION_NUMBER
 LABEL name="Spark Manager Application Image" \
-      version="$VERSION_NUMBER" \
-      summary="UBI8 minimal based Spark Manager Application Image" \
-      description="UBI Minimal Base Image with Python3 for use in Spark Manager Application" \
-      io.k8s.display-name="Spark Manager Application Image" \
-      io.k8s.description="UBI Minimal Base Image with Python3 for use in Spark Manager Application"
+    version="$VERSION_NUMBER" \
+    summary="UBI8 minimal based Spark Manager Application Image" \
+    description="UBI Minimal Base Image with Python3 for use in Spark Manager Application" \
+    io.k8s.display-name="Spark Manager Application Image" \
+    io.k8s.description="UBI Minimal Base Image with Python3 for use in Spark Manager Application"
 
 # install and cleanup
 # need to pull libs based on current arch
@@ -60,6 +60,7 @@ RUN chmod ug+rx /opt/ibm/initScripts/*.sh
 WORKDIR $APP_PATH
 
 #- Install service specific package via pip -#
+RUN sudo -E python3.6 -m pip install --upgrade pip
 RUN sudo -E python3.6 -m pip install -r $APP_PATH/requirements.txt
 
 RUN sudo microdnf clean all && \
