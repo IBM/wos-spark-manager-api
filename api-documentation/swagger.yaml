@@ -203,6 +203,81 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/ErrorContainer'
+  /openscale/spark_wrapper/v1/records:
+    get:
+      responses:
+        '200':
+          description: Records downloaded successfully.
+        '401':
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorContainer'
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorContainer'
+      description: Downloads the records from database.
+      operationId: get
+      parameters:
+        - required: false
+          in: query
+          description: The offset of the results.
+          name: offset
+          type: string
+        - required: false
+          in: query
+          description: The number of results to be returned. Maximum value is 100.
+          name: limit
+          type: string
+        - required: false
+          in: query
+          description: The column to be used to ordered the results and the order(ascending or descending).
+          name: order_by
+          type: string
+        - required: false
+          in: query
+          description: The columns to be returned in the response.
+          name: column_filter
+          type: string
+        - required: false
+          in: query
+          description: The search criteria to use while querying.
+          name: search_filter
+          type: string
+        - required: true
+          in: query
+          description: Database table
+          name: table
+          type: string
+        - required: true
+          in: query
+          description: Database schema
+          name: schema
+          type: string
+        - required: true
+          in: query
+          description: Database name.
+          name: database
+          type: string
+        - required: true
+          in: query
+          description: Database port.
+          name: port
+          type: string
+        - required: true
+          in: query
+          description: Database host name.
+          name: host
+          type: string
+        - required: true
+          in: query
+          description: The type of database. Supported values are hive.
+          name: type
+          type: string
+      produces:
+        - application/octet-stream
+      tags:
+        - Records
 securityDefinitions:
   basicAuth:
     type: basic
