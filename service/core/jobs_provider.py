@@ -175,5 +175,8 @@ class JobsProvider:
             )
             run_request_json["conf"]["spark.yarn.keytab"] = Environment(
             ).get_spark_yarn_keytab_file_path()
+            # Add Hive client authorization flag to conf if hive is kerberized. WI #26124
+            run_request_json["conf"]["spark.hadoop.hive.security.authorization.enabled"] = str(
+                Environment().is_hive_client_auth_enabled()).lower()
 
         return run_request_json
