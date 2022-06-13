@@ -78,6 +78,9 @@ class Environment(metaclass=SwSingleton):
     def get_wos_env_site_packages_path(self):
         return self.get_property_value("WOS_ENV_SITE_PACKAGES_PATH")
 
+    def is_hive_client_auth_enabled(self):
+        return self.get_property_boolean_value("HIVE_CLIENT_AUTHORIZATION_ENABLED", "false")
+
     def get_property_value(self, property_name, default=None):
         if os.environ.get(property_name):
             return os.environ.get(property_name)
