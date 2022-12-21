@@ -259,7 +259,26 @@ class WebHdfsClient:
                 with open(local_dir_path, "wb") as dir_archive:
                     dir_archive.write(archive_directory_data)
                 with tarfile.open(local_dir_path, "r:gz") as tar:
-                    tar.extractall(temp)
+                    def is_within_directory(directory, target):
+                        
+                        abs_directory = os.path.abspath(directory)
+                        abs_target = os.path.abspath(target)
+                    
+                        prefix = os.path.commonprefix([abs_directory, abs_target])
+                        
+                        return prefix == abs_directory
+                    
+                    def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+                    
+                        for member in tar.getmembers():
+                            member_path = os.path.join(path, member.name)
+                            if not is_within_directory(path, member_path):
+                                raise Exception("Attempted Path Traversal in Tar File")
+                    
+                        tar.extractall(path, members, numeric_owner=numeric_owner) 
+                        
+                    
+                    safe_extract(tar, temp)
                 os.remove(local_dir_path)
                 response = client.upload(hdfs_path=directory_name_with_path, local_path=temp)
                 logger.log_info("Successfully uploaded the directory {0} to HDFS".format(response))
