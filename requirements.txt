@@ -1,6 +1,6 @@
 basicauth
-werkzeug==0.16.1
-flask-restplus==0.11.0
+werkzeug==2.2.3
+flask-restplus==0.13.0
 marshmallow==2.15.3
 gunicorn==20.0.4
 retrying==1.3.3
